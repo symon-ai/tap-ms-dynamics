@@ -18,11 +18,15 @@ API_VERSION = '9.2'
 MAX_PAGESIZE = 5000
 MAX_RETRIES = 5
 
+
 def get_abs_path(path):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), path)
 
+
 def log_backoff_attempt(details):
-    LOGGER.info("ConnectionError detected, triggering backoff: %d try", details.get("tries"))
+    LOGGER.info(
+        "ConnectionError detected, triggering backoff: %d try", details.get("tries"))
+
 
 def retry_after_wait_gen():
     while True:
@@ -36,22 +40,32 @@ def retry_after_wait_gen():
         yield math.floor(float(sleep_time_str))
 
 # pylint: disable=missing-class-docstring
+
+
 class DynamicsException(Exception):
     pass
 
 # pylint: disable=missing-class-docstring
+
+
 class DynamicsQuotaExceededException(DynamicsException):
     pass
 
 # pylint: disable=missing-class-docstring
+
+
 class Dynamics5xxException(DynamicsException):
     pass
 
 # pylint: disable=missing-class-docstring
+
+
 class Dynamics4xxException(DynamicsException):
     pass
 
 # pylint: disable=missing-class-docstring
+
+
 class Dynamics429Exception(DynamicsException):
     def __init__(self, message=None, response=None):
         super().__init__(message)
@@ -59,21 +73,24 @@ class Dynamics429Exception(DynamicsException):
         self.response = response
 
 # pylint: disable=too-many-instance-attributes
+
+
 class DynamicsClient:
     def __init__(self,
-                organization_uri,
-                config_path,
-                max_pagesize,
-                api_version=None,
-                client_id=None,
-                client_secret=None,
-                user_agent=None,
-                redirect_uri=None,
-                refresh_token=None,
-                start_date=None):
+                 organization_uri,
+                 config_path,
+                 max_pagesize,
+                 api_version=None,
+                 client_id=None,
+                 client_secret=None,
+                 user_agent=None,
+                 redirect_uri=None,
+                 refresh_token=None,
+                 start_date=None):
         self.organization_uri = organization_uri
         self.api_version = api_version if api_version else API_VERSION
-        max_pagesize = MAX_PAGESIZE if max_pagesize is None else max_pagesize # tap-tester was failing otherwise
+        # tap-tester was failing otherwise
+        max_pagesize = MAX_PAGESIZE if max_pagesize is None else max_pagesize
         self.max_pagesize = max_pagesize if max_pagesize <= MAX_PAGESIZE else MAX_PAGESIZE
         self.client_id = client_id
         self.client_secret = client_secret
@@ -115,7 +132,8 @@ class DynamicsClient:
                 })
 
             if response.status_code != 200:
-                raise DynamicsException('Non-200 response fetching Dynamics access token')
+                raise DynamicsException(
+                    'Non-200 response fetching Dynamics access token')
 
             data = response.json()
 
@@ -134,21 +152,23 @@ class DynamicsClient:
             "OData-MaxVersion": "4.0",
             "OData-Version": "4.0",
             "If-None-Match": "null"
-            }
+        }
 
     @backoff.on_exception(retry_after_wait_gen,
                           Dynamics429Exception,
                           max_tries=MAX_RETRIES,
                           on_backoff=log_backoff_attempt)
     @backoff.on_exception(backoff.expo,
-                          (Dynamics5xxException, Dynamics4xxException, requests.ConnectionError),
+                          (Dynamics5xxException, Dynamics4xxException,
+                           requests.ConnectionError),
                           max_tries=MAX_RETRIES,
                           factor=2,
                           on_backoff=log_backoff_attempt)
     def _make_request(self, method, endpoint, paging=False, headers=None, params=None, data=None):
         if not paging:
             full_url = f'{self.organization_uri}/api/data/v{self.api_version}/{endpoint}'
-        else: full_url = endpoint
+        else:
+            full_url = endpoint
 
         LOGGER.info(
             "%s - Making request to %s endpoint %s, with params %s",
@@ -167,7 +187,8 @@ class DynamicsClient:
         else:
             headers = {**default_headers}
 
-        response = self.session.request(method, full_url, headers=headers, params=params, data=data)
+        response = self.session.request(
+            method, full_url, headers=headers, params=params, data=data)
 
         # pylint: disable=no-else-raise
         if response.status_code >= 500:
@@ -187,22 +208,19 @@ class DynamicsClient:
     def get(self, endpoint, paging=False, headers=None, params=None):
         return self._make_request("GET", endpoint, paging, headers=headers, params=params)
 
-    def call_entity_definitions(self):
+    def call_entity_definitions(self, object: str):
         '''
         Calls the `EntityDefinitions` endpoint to get all entities.
         '''
 
         params = {
-            "$select": "MetadataId,LogicalName,EntitySetName",
-            "$count": "true",
+            "$select": "MetadataId,LogicalName,EntitySetName"
         }
 
-        results = self.get('EntityDefinitions', params=params)
+        results = self.get(
+            f'EntityDefinitions(LogicalName=\'{object}\')', params=params)
 
-        LOGGER.info('MS Dynamics returned {} entities'.format(results.get("@odata.count")))
-
-        # return results
-        yield from results.get('value')
+        return results
 
     def call_metadata(self) -> dict:
         '''
@@ -213,27 +231,27 @@ class DynamicsClient:
 
         return transform_metadata_xml(metadata)
 
-    def build_entity_metadata(self):
+    def build_entity_metadata(self, object: str):
         '''
         Builds entity metadata from the `EntityDefinitions` and `$metadata` endpoints.
         '''
-        entity_definitions = self.call_entity_definitions()
+        entity = self.call_entity_definitions(object)
 
         entity_metadata = self.call_metadata()
 
-        for entity in entity_definitions:
-            entity_name = entity.get("LogicalName")
-            if entity_name in entity_metadata:
-                # checks that entity is in $metadata response
-                entity_metadata[entity_name]["LogicalName"] = entity_name
-                entity_metadata[entity_name]["EntitySetName"] = entity.get("EntitySetName")
+        entity_name = entity.get("LogicalName")
+        if entity_name in entity_metadata:
+            # checks that entity is in $metadata response
+            entity_metadata[entity_name]["LogicalName"] = entity_name
+            entity_metadata[entity_name]["EntitySetName"] = entity.get(
+                "EntitySetName")
 
         yield from entity_metadata.values()
 
     @staticmethod
     def build_params(orderby_key: str = 'modifiedon',
-                    replication_key: str = 'modifiedon',
-                    filter_value: str = None) -> dict:
+                     replication_key: str = 'modifiedon',
+                     filter_value: str = None) -> dict:
         orderby_param = f'{orderby_key} asc'
 
         if filter_value:
