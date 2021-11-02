@@ -7,7 +7,7 @@ with open("README.md") as f:
 
 setup(
     name="tap-ms-dynamics",
-    version="0.1.0",
+    version="1.0.1",
     description="Singer.io tap for the Microsoft Dataverse Web API",
     long_description=readme,
     author="Stitch",
@@ -20,7 +20,7 @@ setup(
     tap-ms-dynamics=tap_dynamics:main
     """,
     packages=find_packages(exclude=["tests"]),
-    package_data = {
+    package_data={
         "schemas": ["tap_dynamics/schemas/*.json"]
     },
     include_package_data=True,
