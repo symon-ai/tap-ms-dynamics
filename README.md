@@ -30,12 +30,27 @@ The high level steps are as follows:
 ## Quick Start
 1. Install
 
-Clone this repository, and then install using setup.py. We recommend using a virtualenv:
+Ensure poetry is installed on your machine. 
 
-```bash
-$ virtualenv -p python3 venv
-$ source venv/bin/activate
-$ pip install -e .
+- This command will return the installed version of poetry if it is installed.
+```
+poetry --version
+```
+
+- If not, install poetry using the following commands (from https://python-poetry.org/docs/#installation):
+```
+curl -sSL https://install.python-poetry.org | python3 -
+PATH=~/.local/bin:$PATH
+```
+
+Within the `tap-ms-dynamics` directory, install dependencies:
+```
+poetry install
+```
+
+Then run the tap:
+```
+poetry run tap-ms-dynamics <options>
 ```
 
 2. Create your tap's config.json file. The tap config file for this tap should include these entries:
