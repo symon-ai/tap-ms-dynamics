@@ -81,7 +81,7 @@ class BaseStream:
     def __init__(self, client: DynamicsClient):
         self.client = client
 
-    def get_records(self, max_pagesize: int = 100, bookmark_datetime: str = None) -> list:
+    def get_records(self, max_pagesize: int = 100, desired_columns: list = [], bookmark_datetime: str = None) -> list:
         """
         Returns a list of records for that stream.
 
@@ -112,7 +112,7 @@ class IncrementalStream(BaseStream):
     replication_method = 'INCREMENTAL'
     batched = False
 
-    def get_records(self, max_pagesize: int = 100, bookmark_datetime: str = None):
+    def get_records(self, max_pagesize: int = 100, desired_columns: list = [], bookmark_datetime: str = None):
         endpoint = self.stream_endpoint
 
         # tap-tester was failing otherwise
@@ -120,7 +120,8 @@ class IncrementalStream(BaseStream):
         pagesize = max_pagesize if max_pagesize <= MAX_PAGESIZE else MAX_PAGESIZE
         header = {'Prefer': f'odata.maxpagesize={pagesize}'}
 
-        params = self.client.build_params(filter_value=bookmark_datetime)
+        params = DynamicsClient.build_params(filter_value=bookmark_datetime)
+        params.update(DynamicsClient.build_select_params(desired_columns))
         self.set_parameters(params)
 
         next_page = True
@@ -139,7 +140,7 @@ class IncrementalStream(BaseStream):
 
             yield from response.get('value')
 
-    def sync(self, state: dict, stream_schema: dict, stream_metadata: dict, config: dict, transformer: Transformer) -> dict:
+    def sync(self, state: dict, stream_schema: dict, stream_metadata: dict, config: dict, transformer: Transformer, desired_columns) -> dict:
         """
         The sync logic for an incremental stream.
 
@@ -157,7 +158,7 @@ class IncrementalStream(BaseStream):
         max_record_value = start_time
 
         with metrics.record_counter(self.tap_stream_id) as counter:
-            for record in self.get_records(config.get('max_pagesize'), max_record_value):
+            for record in self.get_records(config.get('max_pagesize'), desired_columns, max_record_value):
                 transformed_record = transformer.transform(
                     record, stream_schema, stream_metadata)
                 record_replication_value = singer.utils.strptime_to_utc(
@@ -183,7 +184,7 @@ class FullTableStream(BaseStream):
     replication_method = 'FULL_TABLE'
 
     # pylint: disable=arguments-differ
-    def get_records(self, max_pagesize: int = 100):
+    def get_records(self, max_pagesize: int = 100, desired_columns: list = []):
         endpoint = self.stream_endpoint
 
         # tap-tester was failing otherwise
@@ -193,6 +194,8 @@ class FullTableStream(BaseStream):
 
         next_page = True
         paging = False
+        params = DynamicsClient.build_select_params(desired_columns)
+        self.set_parameters(params)
 
         while next_page:
             response = self.client.get(
@@ -211,7 +214,7 @@ class FullTableStream(BaseStream):
 
             yield from response.get('value')
 
-    def sync(self, state: dict, stream_schema: dict, stream_metadata: dict, config: dict, transformer: Transformer) -> dict:
+    def sync(self, state: dict, stream_schema: dict, stream_metadata: dict, config: dict, transformer: Transformer, desired_columns: list) -> dict:
         """
         The sync logic for an full table stream.
 
@@ -223,7 +226,7 @@ class FullTableStream(BaseStream):
         :return: State data in the form of a dictionary
         """
         with metrics.record_counter(self.tap_stream_id) as counter:
-            for record in self.get_records(config.get('max_pagesize')):
+            for record in self.get_records(config.get('max_pagesize'), desired_columns):
                 transformed_record = transformer.transform(
                     record, stream_schema, stream_metadata)
                 singer.write_record(self.tap_stream_id, transformed_record)
@@ -306,9 +309,16 @@ def build_schema(attributes: dict):
         elif dyn_type in NUMBER_TYPES:
             json_type = 'number'
         elif dyn_type in BOOL_TYPES:
-            json_type = 'boolean'
+            json_props[attr_name] = {
+                'inclusion': 'unsupported',
+                'description': 'Unsupported column type'
+            }
+            continue
         elif dyn_type in COMPLEX_TYPES:
-            # TODO: mark as "inclusion": "unsupported"
+            json_props[attr_name] = {
+                'inclusion': 'unsupported',
+                'description': 'Unsupported column type'
+            }
             continue
 
         prop_json_schema = {

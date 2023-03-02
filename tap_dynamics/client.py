@@ -17,6 +17,7 @@ LOGGER = singer.get_logger()
 API_VERSION = '9.2'
 MAX_PAGESIZE = 5000
 MAX_RETRIES = 5
+MAX_SELECT_PARAM_SIZE = 1800
 
 
 def get_abs_path(path):
@@ -258,3 +259,12 @@ class DynamicsClient:
             filter_param = f'{replication_key} ge {filter_value}'
             return {"$orderby": orderby_param, "$filter": filter_param}
         return {"$orderby": orderby_param}
+
+    
+    @staticmethod
+    def build_select_params(desired_columns: list):
+        select_columns = ','.join(desired_columns)
+        if len(select_columns) > MAX_SELECT_PARAM_SIZE or len(desired_columns) == 0:
+            return {}
+        
+        return {'$select': select_columns}

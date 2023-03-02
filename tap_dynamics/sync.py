@@ -20,6 +20,10 @@ def sync(config, config_path, state, catalog):
             stream_schema = stream.schema.to_dict()
             stream_metadata = metadata.to_map(stream.metadata)
 
+            # drop unsupported or unselected columns
+            desired_columns = [colname for colname in stream_schema['properties'] if should_sync_column(stream_metadata, colname)]
+            stream_schema['properties'] = {k : v for k, v in stream_schema['properties'].items() if k in desired_columns}
+
             LOGGER.info('Starting sync for stream: %s', tap_stream_id)
 
             state = singer.set_currently_syncing(state, tap_stream_id)
@@ -28,12 +32,19 @@ def sync(config, config_path, state, catalog):
             singer.write_schema(
                 tap_stream_id,
                 stream_schema,
-                stream_obj.key_properties,
+                [key_property for key_property in stream_obj.key_properties if key_property in desired_columns],
                 stream.replication_key
             )
 
-            state = stream_obj.sync(state, stream_schema, stream_metadata, config, transformer)
+            state = stream_obj.sync(state, stream_schema, stream_metadata, config, transformer, desired_columns)
             singer.write_state(state)
 
     state = singer.set_currently_syncing(state, None)
     singer.write_state(state)
+
+
+def should_sync_column(metadata, field_name):
+    field_metadata = metadata.get(('properties', field_name), {})
+    return singer.should_sync_field(field_metadata.get('inclusion'),
+                                    field_metadata.get('selected'),
+                                    True)
