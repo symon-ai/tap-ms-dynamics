@@ -309,11 +309,7 @@ def build_schema(attributes: dict):
         elif dyn_type in NUMBER_TYPES:
             json_type = 'number'
         elif dyn_type in BOOL_TYPES:
-            json_props[attr_name] = {
-                'inclusion': 'unsupported',
-                'description': 'Unsupported column type'
-            }
-            continue
+            json_type = 'boolean'
         elif dyn_type in COMPLEX_TYPES:
             json_props[attr_name] = {
                 'inclusion': 'unsupported',
