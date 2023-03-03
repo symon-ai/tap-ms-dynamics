@@ -81,7 +81,7 @@ class BaseStream:
     def __init__(self, client: DynamicsClient):
         self.client = client
 
-    def get_records(self, max_pagesize: int = 100, desired_columns: list = [], bookmark_datetime: str = None) -> list:
+    def get_records(self, max_pagesize: int = 100, desired_columns: list = None, bookmark_datetime: str = None) -> list:
         """
         Returns a list of records for that stream.
 
@@ -112,7 +112,7 @@ class IncrementalStream(BaseStream):
     replication_method = 'INCREMENTAL'
     batched = False
 
-    def get_records(self, max_pagesize: int = 100, desired_columns: list = [], bookmark_datetime: str = None):
+    def get_records(self, max_pagesize: int = 100, desired_columns: list = None, bookmark_datetime: str = None):
         endpoint = self.stream_endpoint
 
         # tap-tester was failing otherwise
@@ -140,7 +140,7 @@ class IncrementalStream(BaseStream):
 
             yield from response.get('value')
 
-    def sync(self, state: dict, stream_schema: dict, stream_metadata: dict, config: dict, transformer: Transformer, desired_columns) -> dict:
+    def sync(self, state: dict, stream_schema: dict, stream_metadata: dict, config: dict, transformer: Transformer, desired_columns: list) -> dict:
         """
         The sync logic for an incremental stream.
 
@@ -184,7 +184,7 @@ class FullTableStream(BaseStream):
     replication_method = 'FULL_TABLE'
 
     # pylint: disable=arguments-differ
-    def get_records(self, max_pagesize: int = 100, desired_columns: list = []):
+    def get_records(self, max_pagesize: int = 100, desired_columns: list = None):
         endpoint = self.stream_endpoint
 
         # tap-tester was failing otherwise

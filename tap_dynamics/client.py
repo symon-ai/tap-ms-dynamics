@@ -263,7 +263,10 @@ class DynamicsClient:
     
     @staticmethod
     def build_select_params(desired_columns: list):
+        if desired_columns is None or len(desired_columns) == 0:
+            return {}
+        
         select_columns = ','.join(desired_columns)
-        if len(select_columns) > MAX_SELECT_PARAM_SIZE or len(desired_columns) == 0:
+        if len(select_columns) > MAX_SELECT_PARAM_SIZE:
             return {}
         return {'$select': select_columns}
