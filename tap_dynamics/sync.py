@@ -22,7 +22,6 @@ def sync(config, config_path, state, catalog):
 
             # drop unsupported or unselected columns
             desired_columns = [colname for colname in stream_schema['properties'] if should_sync_column(stream_metadata, colname)]
-            stream_schema['properties'] = {k : v for k, v in stream_schema['properties'].items() if k in desired_columns}
 
             LOGGER.info('Starting sync for stream: %s', tap_stream_id)
 
@@ -32,7 +31,7 @@ def sync(config, config_path, state, catalog):
             singer.write_schema(
                 tap_stream_id,
                 stream_schema,
-                [key_property for key_property in stream_obj.key_properties if key_property in desired_columns],
+                stream_obj.key_properties,
                 stream.replication_key
             )
 

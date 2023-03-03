@@ -266,5 +266,4 @@ class DynamicsClient:
         select_columns = ','.join(desired_columns)
         if len(select_columns) > MAX_SELECT_PARAM_SIZE or len(desired_columns) == 0:
             return {}
-        
         return {'$select': select_columns}
