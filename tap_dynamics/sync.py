@@ -23,7 +23,7 @@ def sync(config, config_path, state, catalog):
             # drop unsupported or unselected columns
             desired_columns = [colname for colname in stream_schema['properties'] if should_sync_column(stream_metadata, colname)]
             # desired_columns is used for building up select query parameter for selected fields. If there are no columns being dropped, 
-            # we do not need to build select query parameters. Set it to empty list. 
+            # we do not need to build select query parameters. Set it to None. 
             if len(desired_columns) == len(stream_schema['properties']):
                 desired_columns = None
 
