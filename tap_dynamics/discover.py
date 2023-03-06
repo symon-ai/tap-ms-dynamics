@@ -43,6 +43,11 @@ def get_schemas(config, config_path):
         )
 
         meta = metadata.to_map(meta)
+        
+        # update metadata for unsuported column types
+        for k, v in schema['properties'].items():
+            if 'inclusion' in v and v['inclusion'] == 'unsupported':
+                metadata.write(meta, ('properties', k), 'inclusion', 'unsupported')
 
         if stream_object.replication_key:
             meta = metadata.write(meta,
