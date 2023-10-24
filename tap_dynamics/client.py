@@ -10,6 +10,7 @@ import singer
 from simplejson import JSONDecodeError
 
 from tap_dynamics.transform import transform_metadata_xml
+from tap_dynamics.symon_exception import SymonException
 
 
 LOGGER = singer.get_logger()
@@ -133,8 +134,7 @@ class DynamicsClient:
                 })
 
             if response.status_code != 200:
-                raise DynamicsException(
-                    'Non-200 response fetching Dynamics access token')
+                raise SymonException('Failed to connect to MS Dynamics. Please ensure the OAuth token is up to date.', 'dynamics.AuthInvalid')
 
             data = response.json()
 
@@ -188,14 +188,19 @@ class DynamicsClient:
         else:
             headers = {**default_headers}
 
-        response = self.session.request(
-            method, full_url, headers=headers, params=params, data=data)
-
+        try:
+            response = self.session.request(
+                method, full_url, headers=headers, params=params, data=data)
+        except requests.exceptions.ConnectionError as e:
+            message = str(e)
+            if 'nodename nor servname provided' in message or 'Name or service not known' in message:
+                raise SymonException(f'Sorry, we couln\'t connect to Dynamics URL "{self.organization_uri}". Please check the Dynamics URL and try again.', 'dynamics.InvalidUrl')
+        
         # pylint: disable=no-else-raise
         if response.status_code >= 500:
             raise Dynamics5xxException(response.text)
         elif response.status_code == 429:
-            raise Dynamics429Exception("rate limit exceeded", response)
+            raise Dynamics429Exception(response.text, response)
         elif response.status_code >= 400:
             raise Dynamics4xxException(response.text)
 
@@ -207,7 +212,10 @@ class DynamicsClient:
         return results
 
     def get(self, endpoint, paging=False, headers=None, params=None):
-        return self._make_request("GET", endpoint, paging, headers=headers, params=params)
+        try:
+            return self._make_request("GET", endpoint, paging, headers=headers, params=params)
+        except DynamicsException as e:
+            raise SymonException(f'Import failed with the following MS Dynamics error: {str(e)}','dynamics.DynamicsApiError')
 
     def call_entity_definitions(self, object: str):
         '''
