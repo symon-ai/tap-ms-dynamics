@@ -193,7 +193,7 @@ class DynamicsClient:
                 method, full_url, headers=headers, params=params, data=data)
         except requests.exceptions.ConnectionError as e:
             message = str(e)
-            if 'nodename nor servname provided' in message or 'Name or service not known' in message:
+            if 'nodename nor servname provided, or not known' in message or 'Name or service not known' in message:
                 raise SymonException(f'Sorry, we couln\'t connect to Dynamics URL "{self.organization_uri}". Please check the Dynamics URL and try again.', 'dynamics.InvalidUrl')
         
         # pylint: disable=no-else-raise
