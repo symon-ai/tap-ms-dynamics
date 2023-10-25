@@ -232,7 +232,6 @@ class DynamicsClient:
                 error_json = e.response.json()
                 message = error_json["error"]["message"]
                 error_code = error_json["error"]["code"]
-                
             except:
                 pass
 
