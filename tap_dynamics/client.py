@@ -45,25 +45,37 @@ def retry_after_wait_gen():
 
 
 class DynamicsException(Exception):
-    pass
+    def __init__(self, message=None, response=None):
+        super().__init__(message)
+        self.message = message
+        self.response = response
 
 # pylint: disable=missing-class-docstring
 
 
 class DynamicsQuotaExceededException(DynamicsException):
-    pass
+    def __init__(self, message=None, response=None):
+        super().__init__(message)
+        self.message = message
+        self.response = response
 
 # pylint: disable=missing-class-docstring
 
 
 class Dynamics5xxException(DynamicsException):
-    pass
+    def __init__(self, message=None, response=None):
+        super().__init__(message)
+        self.message = message
+        self.response = response
 
 # pylint: disable=missing-class-docstring
 
 
 class Dynamics4xxException(DynamicsException):
-    pass
+    def __init__(self, message=None, response=None):
+        super().__init__(message)
+        self.message = message
+        self.response = response
 
 # pylint: disable=missing-class-docstring
 
@@ -198,11 +210,11 @@ class DynamicsClient:
         
         # pylint: disable=no-else-raise
         if response.status_code >= 500:
-            raise Dynamics5xxException(response.text)
+            raise Dynamics5xxException(response.text, response)
         elif response.status_code == 429:
-            raise Dynamics429Exception(response.text, response)
+            raise Dynamics429Exception("rate limit exceeded", response)
         elif response.status_code >= 400:
-            raise Dynamics4xxException(response.text)
+            raise Dynamics4xxException(response.text, response)
 
         try:
             results = response.json()
@@ -215,7 +227,20 @@ class DynamicsClient:
         try:
             return self._make_request("GET", endpoint, paging, headers=headers, params=params)
         except DynamicsException as e:
-            raise SymonException(f'Import failed with the following MS Dynamics error: {str(e)}','dynamics.DynamicsApiError')
+            message, error_code = None, None
+            try:
+                error_json = e.response.json()
+                message = error_json["error"]["message"]
+                error_code = error_json["error"]["code"]
+                
+            except:
+                pass
+
+            if message is not None and error_code is not None:
+                raise SymonException(f'Import failed with the following MS Dynamics error: (error code: {error_code}) {message}','dynamics.DynamicsApiError')
+            elif message is not None:
+                raise SymonException(f'Import failed with the following MS Dynamics error: {message}','dynamics.DynamicsApiError')
+            raise
 
     def call_entity_definitions(self, object: str):
         '''
