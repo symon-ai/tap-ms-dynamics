@@ -138,7 +138,8 @@ class DynamicsClient:
                 })
 
             if response.status_code != 200:
-                raise SymonException('Failed to connect to MS Dynamics. Please ensure the OAuth token is up to date.', 'dynamics.AuthInvalid')
+                raise DynamicsException(
+                    'Non-200 response fetching Dynamics access token')
 
             data = response.json()
 
