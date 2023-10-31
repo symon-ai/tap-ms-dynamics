@@ -55,36 +55,28 @@ class DynamicsException(Exception):
 
 class DynamicsQuotaExceededException(DynamicsException):
     def __init__(self, message=None, response=None):
-        super().__init__(message)
-        self.message = message
-        self.response = response
+        super().__init__(message, response)
 
 # pylint: disable=missing-class-docstring
 
 
 class Dynamics5xxException(DynamicsException):
     def __init__(self, message=None, response=None):
-        super().__init__(message)
-        self.message = message
-        self.response = response
+        super().__init__(message, response)
 
 # pylint: disable=missing-class-docstring
 
 
 class Dynamics4xxException(DynamicsException):
     def __init__(self, message=None, response=None):
-        super().__init__(message)
-        self.message = message
-        self.response = response
+        super().__init__(message, response)
 
 # pylint: disable=missing-class-docstring
 
 
 class Dynamics429Exception(DynamicsException):
     def __init__(self, message=None, response=None):
-        super().__init__(message)
-        self.message = message
-        self.response = response
+        super().__init__(message, response)
 
 # pylint: disable=too-many-instance-attributes
 
@@ -206,7 +198,7 @@ class DynamicsClient:
         except requests.exceptions.ConnectionError as e:
             message = str(e)
             if 'nodename nor servname provided, or not known' in message or 'Name or service not known' in message:
-                raise SymonException(f'Sorry, we couln\'t connect to Dynamics URL "{self.organization_uri}". Please check the Dynamics URL and try again.', 'dynamics.InvalidUrl')
+                raise SymonException(f'Sorry, we couldn\'t connect to Dynamics URL "{self.organization_uri}". Please check the Dynamics URL and try again.', 'dynamics.InvalidUrl')
         
         # pylint: disable=no-else-raise
         if response.status_code >= 500:
