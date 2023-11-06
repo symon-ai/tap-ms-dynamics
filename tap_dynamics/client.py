@@ -10,6 +10,7 @@ import singer
 from simplejson import JSONDecodeError
 
 from tap_dynamics.transform import transform_metadata_xml
+from tap_dynamics.symon_exception import SymonException
 
 
 LOGGER = singer.get_logger()
@@ -44,34 +45,38 @@ def retry_after_wait_gen():
 
 
 class DynamicsException(Exception):
-    pass
+    def __init__(self, message=None, response=None):
+        super().__init__(message)
+        self.message = message
+        self.response = response
 
 # pylint: disable=missing-class-docstring
 
 
 class DynamicsQuotaExceededException(DynamicsException):
-    pass
+    def __init__(self, message=None, response=None):
+        super().__init__(message, response)
 
 # pylint: disable=missing-class-docstring
 
 
 class Dynamics5xxException(DynamicsException):
-    pass
+    def __init__(self, message=None, response=None):
+        super().__init__(message, response)
 
 # pylint: disable=missing-class-docstring
 
 
 class Dynamics4xxException(DynamicsException):
-    pass
+    def __init__(self, message=None, response=None):
+        super().__init__(message, response)
 
 # pylint: disable=missing-class-docstring
 
 
 class Dynamics429Exception(DynamicsException):
     def __init__(self, message=None, response=None):
-        super().__init__(message)
-        self.message = message
-        self.response = response
+        super().__init__(message, response)
 
 # pylint: disable=too-many-instance-attributes
 
@@ -188,16 +193,21 @@ class DynamicsClient:
         else:
             headers = {**default_headers}
 
-        response = self.session.request(
-            method, full_url, headers=headers, params=params, data=data)
-
+        try:
+            response = self.session.request(
+                method, full_url, headers=headers, params=params, data=data)
+        except requests.exceptions.ConnectionError as e:
+            message = str(e)
+            if 'nodename nor servname provided, or not known' in message or 'Name or service not known' in message:
+                raise SymonException(f'Sorry, we couldn\'t connect to Dynamics URL "{self.organization_uri}". Please check the Dynamics URL and try again.', 'dynamics.InvalidUrl')
+        
         # pylint: disable=no-else-raise
         if response.status_code >= 500:
-            raise Dynamics5xxException(response.text)
+            raise Dynamics5xxException(response.text, response)
         elif response.status_code == 429:
             raise Dynamics429Exception("rate limit exceeded", response)
         elif response.status_code >= 400:
-            raise Dynamics4xxException(response.text)
+            raise Dynamics4xxException(response.text, response)
 
         try:
             results = response.json()
@@ -207,7 +217,22 @@ class DynamicsClient:
         return results
 
     def get(self, endpoint, paging=False, headers=None, params=None):
-        return self._make_request("GET", endpoint, paging, headers=headers, params=params)
+        try:
+            return self._make_request("GET", endpoint, paging, headers=headers, params=params)
+        except DynamicsException as e:
+            message, error_code = None, None
+            try:
+                error_json = e.response.json()
+                message = error_json["error"]["message"]
+                error_code = error_json["error"]["code"]
+            except:
+                pass
+
+            if message is not None and error_code is not None:
+                raise SymonException(f'Import failed with the following MS Dynamics error: (error code: {error_code}) {message}','dynamics.DynamicsApiError')
+            elif message is not None:
+                raise SymonException(f'Import failed with the following MS Dynamics error: {message}','dynamics.DynamicsApiError')
+            raise
 
     def call_entity_definitions(self, object: str):
         '''
