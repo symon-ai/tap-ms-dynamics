@@ -1,11 +1,11 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "dae9fae839535594ec6dac9b1a9e94cafc0020776828975eb2ff6c8a51bc9296"
+            "sha256": "f229e508a5aefc52075434f22f911feba1db4bfae93f50c58c4d618139b47ccb"
         },
         "pipfile-spec": 6,
         "requires": {
-            "python_version": "^3.7"
+            "python_version": "3.8"
         },
         "sources": [
             {
@@ -27,12 +27,12 @@
         },
         "certifi": {
             "hashes": [
-                "sha256:9b469f3a900bf28dc19b8cfbf8019bf47f7fdd1a65a1d4ffb98fc14166beb4d1",
-                "sha256:e036ab49d5b79556f99cfc2d9320b34cfbe5be05c5871b51de9329f0603b0474"
+                "sha256:0f212c2744a9bb6de0c56639a6f68afe01ecd92d91f14ae897c4fe7bbeeef0de",
+                "sha256:47c09d31ccf2acf0be3f701ea53595ee7e0b8fa08801c6624be771df09ae7b43"
             ],
             "index": "pypi",
-            "markers": "python_version >= '3.6'",
-            "version": "==2023.11.17"
+            "markers": "python_version >= '3.7'",
+            "version": "==2025.10.5"
         },
         "chardet": {
             "hashes": [
