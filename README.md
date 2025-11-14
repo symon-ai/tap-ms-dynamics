@@ -112,6 +112,17 @@ $ tap-dynamics --config tap_config.json --catalog catalog.json | target-stitch -
 $ tail -1 state.json > state.json.tmp && mv state.json.tmp state.json
 ```
 
+## Package manager
+
+We only use poetry to manage our packages. Pipfile is there because our code scan doesn't support poetry.lock. So we do the following hack to generate Pipfile and Pipfile.lock based on our poetry.lock:
+
+# 1. Export all dependencies from poetry.lock to requirements.txt
+poetry export -f requirements.txt --output requirements.txt --without-hashes
+
+# 2. Generate Pipfile and Pipfile.lock from requirements.txt
+pipenv install -r requirements.txt
+
+
 
 ---
 
