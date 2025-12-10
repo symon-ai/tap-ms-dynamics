@@ -1,11 +1,11 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "58e1c587eb24de4d5dda9a9628aa4f525648ec4f9b2bdfddce66913eeaf60bf7"
+            "sha256": "2f2bc3254218f6f3a4f20792a2c7272ce82b8da5e30db89c7a0746191783ac27"
         },
         "pipfile-spec": 6,
         "requires": {
-            "python_version": "3.9"
+            "python_version": "3.8"
         },
         "sources": [
             {
@@ -198,12 +198,12 @@
         },
         "requests": {
             "hashes": [
-                "sha256:2462f94637a34fd532264295e186976db0f5d453d1cdd31473c85a6a161affb6",
-                "sha256:dbba0bac56e100853db0ea71b82b4dfd5fe2bf6d3754a8893c3af500cec7d7cf"
+                "sha256:27babd3cda2a6d50b30443204ee89830707d396671944c998b5975b031ac2b2c",
+                "sha256:27d0316682c8a29834d3264820024b62a36942083d52caf2f14c0591336d3422"
             ],
             "index": "pypi",
-            "markers": "python_version >= '3.9'",
-            "version": "==2.32.5"
+            "markers": "python_version >= '3.8'",
+            "version": "==2.32.4"
         },
         "simplejson": {
             "hashes": [
