@@ -35,6 +35,14 @@ def retry_after_wait_gen():
         # This is called in an except block so we can retrieve the exception
         # and check it.
         exc_info = sys.exc_info()
+        exc = exc_info[1]
+
+        # backoff 2.x initializes the generator outside of exception context
+        # we manually yield here to prime it for the next iteration
+        if exc is None or not hasattr(exc, 'response') or exc.response is None:
+            yield 15
+            continue
+
         resp = exc_info[1].response
         sleep_time_str = resp.headers.get('Retry-After')
         LOGGER.info(f'API rate limit exceeded -- sleeping for '
@@ -200,7 +208,7 @@ class DynamicsClient:
             message = str(e)
             if 'nodename nor servname provided, or not known' in message or 'Name or service not known' in message:
                 raise SymonException(f'Sorry, we couldn\'t connect to Dynamics URL "{self.organization_uri}". Please check the Dynamics URL and try again.', 'dynamics.InvalidUrl')
-        
+
         # pylint: disable=no-else-raise
         if response.status_code >= 500:
             raise Dynamics5xxException(response.text, response)
@@ -285,12 +293,12 @@ class DynamicsClient:
             return {"$orderby": orderby_param, "$filter": filter_param}
         return {"$orderby": orderby_param}
 
-    
+
     @staticmethod
     def build_select_params(desired_columns: list):
         if desired_columns is None or len(desired_columns) == 0:
             return {}
-        
+
         select_columns = ','.join(desired_columns)
         if len(select_columns) > MAX_SELECT_PARAM_SIZE:
             return {}
