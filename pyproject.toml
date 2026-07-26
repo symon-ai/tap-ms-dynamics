@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tap-ms-dynamics"
-version = "2.2.0"
+version = "2.2.1"
 description = "Singer.io tap for the Microsoft Dataverse Web API"
 authors = ["Stitch"]
 classifiers = ["Programming Language :: Python :: 3 :: Only"]
