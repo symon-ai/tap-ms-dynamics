@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import traceback
 import singer
@@ -23,6 +24,31 @@ LOGGER = singer.get_logger()
 # for symon error logging
 ERROR_START_MARKER = '[tap_error_start]'
 ERROR_END_MARKER = '[tap_error_end]'
+
+
+def resolve_safe_error_file_path(error_file_path, base_dir):
+    """Validate a config-supplied error file path against path manipulation (CWE-73).
+
+    The platform sets ``error_file_path`` to a known, controlled location, but Veracode
+    treats it as tainted input. This canonicalizes the requested path and confirms it is
+    contained within ``base_dir`` (an allowed root), rejecting absolute-escape and ``..``
+    traversal. Returns the canonical, in-bounds path, or ``None`` when the path is missing
+    or fails validation (in which case callers fall back to marker-based error logging).
+    """
+    if not error_file_path:
+        return None
+
+    allowed_root = os.path.realpath(base_dir)
+    resolved_path = os.path.realpath(os.path.join(allowed_root, error_file_path))
+
+    try:
+        # commonpath raises ValueError on mixed drives/absolute-vs-relative; both are unsafe.
+        if os.path.commonpath([allowed_root, resolved_path]) != allowed_root:
+            return None
+    except ValueError:
+        return None
+
+    return resolved_path
 
 
 @utils.handle_top_exception(LOGGER)
@@ -66,9 +92,14 @@ def main():
         if error_info is not None:
             try:
                 error_file_path = args.config.get('error_file_path', None)
-                if error_file_path is not None:
+                # Validate the config-supplied path against path manipulation (CWE-73)
+                # before writing; reject traversal / out-of-bounds paths and fall back to
+                # the marker-based error logging below.
+                error_file_base_dir = args.config.get('error_file_base_dir', os.getcwd())
+                safe_error_file_path = resolve_safe_error_file_path(error_file_path, error_file_base_dir)
+                if safe_error_file_path is not None:
                     try:
-                        with open(error_file_path, 'w', encoding='utf-8') as fp:
+                        with open(safe_error_file_path, 'w', encoding='utf-8') as fp:
                             json.dump(error_info, fp)
                     except:
                         pass
