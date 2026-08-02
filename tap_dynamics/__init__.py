@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import traceback
 import singer
@@ -23,6 +24,31 @@ LOGGER = singer.get_logger()
 # for symon error logging
 ERROR_START_MARKER = '[tap_error_start]'
 ERROR_END_MARKER = '[tap_error_end]'
+
+
+def sanitize_error_file_path(error_file_path):
+    '''Validate a config-supplied error file path before it is opened.
+
+    Guards against CWE-73 (external control of file name / path traversal):
+    the tap only ever writes its error file inside the current working
+    directory that the orchestrator invokes it in, so any path that resolves
+    outside that directory (via ``..`` segments, an absolute path, or a
+    symlink) is rejected. Returns the safe, normalized absolute path when the
+    value stays inside the working directory, otherwise ``None`` so the caller
+    can skip the file write and fall back to log-only error reporting.
+    '''
+    if not isinstance(error_file_path, str) or error_file_path == '':
+        return None
+
+    base_dir = os.path.realpath(os.getcwd())
+    # Resolve the candidate against the working directory and collapse any
+    # traversal / symlink components so the containment check cannot be fooled.
+    resolved = os.path.realpath(os.path.join(base_dir, error_file_path))
+
+    if resolved != base_dir and not resolved.startswith(base_dir + os.sep):
+        return None
+
+    return resolved
 
 
 @utils.handle_top_exception(LOGGER)
@@ -65,7 +91,7 @@ def main():
     finally:
         if error_info is not None:
             try:
-                error_file_path = args.config.get('error_file_path', None)
+                error_file_path = sanitize_error_file_path(args.config.get('error_file_path', None))
                 if error_file_path is not None:
                     try:
                         with open(error_file_path, 'w', encoding='utf-8') as fp:
