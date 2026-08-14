@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import traceback
 import singer
@@ -23,6 +24,22 @@ LOGGER = singer.get_logger()
 # for symon error logging
 ERROR_START_MARKER = '[tap_error_start]'
 ERROR_END_MARKER = '[tap_error_end]'
+
+
+def sanitize_error_file_path(error_file_path):
+    """Return a canonical path only when it remains within the working directory."""
+    if not isinstance(error_file_path, str) or not error_file_path:
+        return None
+
+    allowed_root = os.path.realpath(os.getcwd())
+    resolved_path = os.path.realpath(os.path.join(allowed_root, error_file_path))
+    try:
+        if os.path.commonpath([allowed_root, resolved_path]) != allowed_root:
+            return None
+    except ValueError:
+        return None
+
+    return resolved_path
 
 
 @utils.handle_top_exception(LOGGER)
@@ -65,7 +82,8 @@ def main():
     finally:
         if error_info is not None:
             try:
-                error_file_path = args.config.get('error_file_path', None)
+                error_file_path = sanitize_error_file_path(
+                    args.config.get('error_file_path', None))
                 if error_file_path is not None:
                     try:
                         with open(error_file_path, 'w', encoding='utf-8') as fp:
